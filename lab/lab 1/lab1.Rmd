@@ -1,0 +1,70 @@
+---
+title: "lab1"
+author: "Beimnet"
+date: "2024-01-25"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(here)
+```
+
+## Lab 1
+
+
+inveserbell shape binom power calculation. if null p = 0.5 then true p = 0.5 
+
+###simulate power
+
+```{r}
+# simulate data
+
+# M <- 1e3
+# 
+# X <- rbinom(M,size=10, prob= 0.5)
+# one_sim <- function(p_1, M=1e3){
+# X <- rbinom(M,size=10, prob= p_1)
+# 
+# p.val <- pbinom(abs(X - p_1),10,p_1) * 2
+# }
+
+p_1 <- 0.5
+X <- sum(rbinom(10,1,p_1))
+
+get_power <- function(p_1, M =1e3){
+mean(
+  replicate(
+    M, {
+      X <- sum(rbinom(10,1,p_1))
+      as.numeric(X <=2 | X >= 8)
+    }
+  )
+)
+}
+
+get_power(p_1 = 0.7)
+
+### differing pval probs at heads <= 2 or heads >= 8 for differing null centering probs.
+
+
+get_power2 <- function(p_1, M =1e3){
+  X <- rbinom(M, size = 10, p_1)
+  mean(as.numeric(X <=2 | X >= 8))
+  
+  
+}
+
+Y <- get_power2(0:1)
+
+# rbinom not vectorized
+
+sapply(c(0.05,0.5), function(x){
+  rbinom(1,10,x)
+})
+
+
+```
+
+

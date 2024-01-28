@@ -1,0 +1,91 @@
+---
+title: "lab1"
+author: "Beimnet"
+date: "2024-01-18"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+## Prob 1
+
+```{r}
+ggplot(data.frame(bears = seq(0, 4, 0.1)), aes(x = bears)) +
+geom_function(fun = function(x) {pnorm(x, 2, 0.5)}) +
+labs(y = "Probability density") +
+theme_bw() + theme(
+axis.title.x = element_blank()
+)
+
+
+ggplot(data.frame(bears = seq(0, 4, 0.1)), aes(x = bears)) +
+geom_function(fun = function(x) {dunif(x, 2,4)}) +
+labs(y = "Probability density") +
+theme_bw() + theme(
+axis.title.x = element_blank()
+)
+```
+
+## for loops
+
+
+```{r}
+library(here)
+
+candy <- read.csv(here("lab",'multiTimeline.csv'), skip = 2,
+col.names = c("Month", "Popularity"))
+
+scale(candy$Popularity, center = T, scale = F)
+
+candy$centered_popularity <- NA
+
+for (i in 1:nrow(candy)) {
+ candy$centered_popularity[i] <-  candy$Popularity[i] - mean(candy$Popularity)
+}
+
+```
+
+
+vectorized fxns or inbuilt base r fxns are faster than loops
+
+```{r}
+set.seed(1042)
+random_vector <- rnorm(1e4)
+
+centered_rv <- rep(NA,1e4)
+system.time({
+for (i in 1:length(random_vector)) {
+ centered_rv[i] <-  random_vector[i] - mean(random_vector)
+}
+})
+
+
+system.time({
+  cent2 <- scale(random_vector, T, F)
+})
+```
+
+```{r}
+
+candy$diff_pop <- NaN
+
+for(i in 2:nrow(candy)){
+  candy$diff_pop[i] <- candy$Popularity[i]-candy$Popularity[i-1]
+}
+
+#without loop
+
+candy$diff_pop2 <- with(
+  candy,
+  Popularity - lag(Popularity, 1)
+)
+
+
+```
+
+## convergence
+
+
