@@ -1,6 +1,6 @@
 ---
 title: "Assignment 1"
-author: "Beimnet Taye"
+author: "Joan Shim and Beimnet Taye"
 date: "2024-02-04"
 output: pdf_document
 ---
