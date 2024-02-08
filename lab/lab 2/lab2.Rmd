@@ -1,0 +1,54 @@
+---
+title: "lab 2"
+author: "Beimnet"
+date: "2024-02-08"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(boot)
+library(fastglm)
+```
+
+```{r}
+ load("Stroke_data.Rdata")
+
+index <- c(1:nrow(stroke.data))
+
+icr.fun <- function(dataset, index){
+  
+  dataset <- dataset[index, ]
+  
+  mod <- glm(stroke ~  diabetes * cursmoke,
+             binomial("log"),
+             dataset)
+  beta <- coef(mod)[-1]
+  icr <- exp(sum(beta)) - exp(beta[1]) - exp(beta[2]) + 1
+  
+  return(icr)
+  
+}
+
+icr.fun(stroke.data, index)
+```
+
+```{r, eval = F}
+library(boot)
+set.seed(1108)
+R <- 5000 # Must be greater than `nrow(stroke.data)` for skew adjustment
+# icr.boot <- boot(
+# stroke.data,
+# icr.fun,
+# R,
+# parallel = "snow",
+# ncpus = parallel::detectCores() - 1)
+# boot.ci <- boot.ci(icr.boot, type = c("norm", "perc", "bca"))
+save(icr.boot, file = "icr.boot.rdata")
+save(boot.ci, file = "boot.ci.rdata")
+```
+
+```{r}
+
+```
+
