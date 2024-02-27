@@ -1,0 +1,230 @@
+---
+title: "assign 2"
+author: "Beimnet Taye"
+date: "2024-02-27"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library(boot)
+library(tidyverse)
+library(knitr)
+data <- load("Glucose_data.Rdata")
+```
+
+```{r}
+standardized.measures <- function(dataset, index){
+# Create resampled version of dataset using index vector:
+data.resamp <- dataset[index,]
+fit.logistic <- glm(death ~ factor(glucose.cat) + age + factor(sex) +
+factor(educ) + factor(cursmoke),
+data=data.resamp,
+family=binomial)
+### To calculate the measures of association:
+# STEP 1: Create two new versions of the *original* dataset, called
+# data.resamp.low (the pseudo-population "everyone with lowest glucose category")
+# data.resamp.red (the pseudo-population "everyone reduces glucose category 1 level")
+data.resamp.low <- data.resamp.red <- data.resamp
+### Set blood glucose categories in comparison datasets:
+# Pseudo-sample if everyone was in lowest category:
+data.resamp.low$glucose.cat <- "[0,100)"
+# Pseudo-sample if those w/ elevated glucose reduced their levels
+# (lowered by 1 category):
+data.resamp.red$glucose.cat <- dplyr::recode(data.resamp.red$glucose.cat,
+"[100,126)"="[0,100)",
+"[126,Inf)"="[100,126)")
+# STEP 2: Obtain predicted individual risk of hypertension under each new dataset:
+rhat.obs <- predict(fit.logistic, type="response") # uses data from model fit
+rhat.low <- predict(fit.logistic, type="response", newdata = data.resamp.low)
+rhat.red <- predict(fit.logistic, type="response", newdata = data.resamp.red)
+# STEP 3: Calculate the average risk (proportion) of death
+# in each hypothetical population:
+risk.obs <- mean(rhat.obs)
+risk.low <- mean(rhat.low)
+risk.red <- mean(rhat.red)
+### Calculate risk differences and risk ratios
+## A. Everyone with low glucose levels vs. the observed distribution:
+rd.low.obs <- risk.low - risk.obs
+rr.low.obs <- risk.low/risk.obs
+## B. Reduced glucose levels vs. the observed distribution:
+rd.red.obs <- risk.red - risk.obs
+rr.red.obs <- risk.red/risk.obs
+# STEP 4: Return these estimates:
+return(c(rd.low.obs, rr.low.obs,
+rd.red.obs, rr.red.obs))
+}
+```
+
+```{r point}
+
+n.obs <- nrow(glucose.data)
+stdized.measures <- standardized.measures(glucose.data, 1:n.obs)
+stdized.rd.low <- stdized.measures[1] # RD low vs. obs
+stdized.rr.low <- stdized.measures[2] # RR low vs. obs
+
+stdized.rd.red <- stdized.measures[3] # RD low vs. obs
+stdized.rr.red <- stdized.measures[4] # RR low vs. obs
+
+
+```
+
+```{r botting}
+ncores <- parallel::detectCores()
+
+# set.seed(123)
+# # Put the bootstrapped sample results into object called bs.standardized
+# bs.standardized <- boot(glucose.data, standardized.measures, R=5000,
+# parallel="snow", ncpus= ncores - 1)
+
+# save(bs.standardized, file = "boots.Rdata")
+load("boots.Rdata")
+
+# Summarize each of the 4 bootstrap samples:
+# rd.low.ci.bca <- boot.ci(bs.standardized, type= "bca", index=1) # rd.low.obs
+# rr.low.ci.bca <- boot.ci(bs.standardized, type= "bca", index=2) # rr.low.obs
+# rd.red.ci.bca <- boot.ci(bs.standardized, type= "bca", index=3) # rd.red.obs
+# rr.red.ci.bca <- boot.ci(bs.standardized, type= "bca", index=4) # rr.red.obs
+
+# save(rd.low.ci.bca, file = "rd.low.ci.bca.Rdata")
+# save(rr.low.ci.bca, file = "rr.low.ci.bca.Rdata")
+# save(rd.red.ci.bca, file = "rd.red.ci.bca.Rdata")
+# save(rr.red.ci.bca, file = "rr.red.ci.bca.Rdata")
+
+load("rd.low.ci.bca.Rdata")
+load("rr.low.ci.bca.Rdata")
+load("rd.red.ci.bca.Rdata")
+load("rr.red.ci.bca.Rdata")
+
+
+```
+
+```{r}
+rd.samples.low <- bs.standardized$t[,1]
+rr.samples.low <- bs.standardized$t[,2]
+rd.samples.red <- bs.standardized$t[,3]
+rr.samples.red <- bs.standardized$t[,4]
+
+# pdf("Density_Plots.pdf")
+# par(mfrow=c(2,1))
+# plot(density(rd.samples.low), main="Bootstraped Samples of Risk Difference",
+# xlab="RD",
+# sub="Low glucose vs. observed distribution")
+# plot(density(rr.samples.low), main="Bootstraped Samples of Risk Ratio",
+# xlab="RR",
+# sub="Low glucose vs. observed distribution")
+# par(mfrow=c(1,1))
+
+# par(mfrow=c(2,1))
+# plot(density(rd.samples.red), main="Bootstraped Samples of Risk Difference",
+# xlab="RD",
+# sub="Reduced glucose vs. observed distribution")
+# plot(density(rr.samples.red), main="Bootstraped Samples of Risk Ratio",
+# xlab="RR",
+# sub="Reduced glucose vs. observed distribution")
+# par(mfrow=c(1,1))
+# dev.off()
+
+sd.rd.low <- sd(bs.standardized$t[,1])
+
+sd.rr.low <- sd(bs.standardized$t[,2])
+
+rd.ci.norm.low <- stdized.rd.low + qnorm(c(0.025, 0.975)) * sd.rd.low
+
+rr.ci.norm.low <- stdized.rr.low + qnorm(c(0.025, 0.975)) * sd.rr.low
+
+
+```
+
+\newpage
+# 1
+
+```{r q1}
+
+ rd.low.bca <- c( stdized.rd.low, rd.low.ci.bca$bca[c(4,5)]) * 1000
+ rr.low.bca <- c( stdized.rr.low, rr.low.ci.bca$bca[c(4,5)])
+ 
+ rd.red.bca <- c( stdized.rd.red, rd.red.ci.bca$bca[c(4,5)]) * 1000
+ rr.red.bca <- c( stdized.rr.red, rr.red.ci.bca$bca[c(4,5)])
+ 
+
+ bca.tab <- rbind( 
+ rd.low.bca,
+ rr.low.bca,
+ rd.red.bca,
+ rr.red.bca
+ )
+
+ colnames(bca.tab) <- c("Point", "Lower", "Upper")
+ 
+ rownames(bca.tab) <- c("Risk Difference (per 1000) Low vs Observed", 
+                        "Risk Ratio Low vs Observed",
+                        "Risk Difference (per 1000) Reduced vs Observed",
+                        "Risk Ratio Reduced vs Observed")
+ 
+ bca.tab %>% 
+   kable(booktabs = T, digits = 2, caption = c("Point Estimates and Bootstraped Bca 95\\% CIs" ),
+         col.names = c("Point Estimate", "Lower Bound", "Upper Bound")) %>% 
+   kableExtra::add_header_above(header = c(" " = 2, "95 \\% CI" = 2)) %>% 
+   kableExtra::kable_styling(latex_options = c("HOLD_position", "striped"))
+
+
+```
+
+Per 1000 individuals, there were 7.71 (-12.51,-3.34) fewer deaths during 20 years of follow up if all individuals had low levels of blood glucose than that in the observed population.
+
+The risk of death among the entire population with low levels of blood glucose was 0.97 (0.95,0.99) times the risk of death among the observed population with observed levels of blood glucose during 20 years of following up. 
+
+Per 1000 individuals, there were 6.95 (-10.44,-3.53) fewer deaths during 20 years of follow up if all individuals had reduced levels of blood glucose than that in the observed population.
+
+The risk of death among the entire population with reduced levels of blood glucose was 0.97 (0.96,0.99) times the risk of death among the observed population with observed levels of blood glucose during 20 years of following up. 
+
+\newpage
+# 2
+
+```{r q2}
+plot(density(rd.samples.low), main="Bootstraped Samples of Risk Difference",
+xlab="RD",
+sub="Low glucose vs. observed distribution")
+plot(density(rr.samples.low), main="Bootstraped Samples of Risk Ratio",
+xlab="RR",
+sub="Low glucose vs. observed distribution")
+par(mfrow=c(1,1))
+
+
+par(mfrow=c(2,1))
+plot(density(rd.samples.red), main="Bootstraped Samples of Risk Difference",
+xlab="RD",
+sub="Reduced glucose vs. observed distribution")
+plot(density(rr.samples.red), main="Bootstraped Samples of Risk Ratio",
+xlab="RR",
+sub="Reduced glucose vs. observed distribution")
+par(mfrow=c(1,1))
+```
+
+For both the reduced and low glucose models both the RR and the RD seem to have normal sampling distributions with modes centered near their respective point estimates. All density plots seem to not be skewed. 
+
+
+\newpage
+# 3
+$$ \begin{aligned}
+\text{.95 CI}_{norm}
+& = \hat{\theta} \pm z_{\alpha/2} * \hat{\text{SE}_{\hat{\theta}}} \\
+& = (-0.007707) \pm (1.96) * (0.002293) \\
+& = (-0.01220128,-0.00321272) \\
+Or\\
+& = \boxed{(-12.2,-3.21) \text{ Per 1000}}
+\end{aligned}$$
+
+The normal approximation requires the sampling distribution of the Risk difference to be normally distributed and not skewed. Based on how the sampling distribution plots all look normal and not skewed I think the normal approximation is an appropriate method to estimate the bootstrapped CIs. This is further evidenced by the fact that the Bca confidence intervals are approximately equal to that of the normal approximation CIs, although the normal approximated CI is only a tiny bit shifted towards the null (-12.2, -3.21) than the Bca interval (-12.51, -3.34). 
+
+\newpage
+# 4
+$$ \begin{aligned}
+\text{.95 CI}_{norm}
+& = \hat{\theta} \pm z_{\alpha/2} * \hat{\text{SE}_{\hat{\theta}}} \\
+& = (0.971617) \pm (1.96) * (0.008443) \\
+& = \boxed{(0.96,0.99)}
+\end{aligned}$$
+
+The normal approximation requires the sampling distribution of the Risk ratio to be normally distributed and not skewed. This can be a problem since relative estimates are left bounded at 0 but in this case, based on how the sampling distribution plots all look normal and not skewed, I think the normal approximation is an appropriate method to estimate the bootstrapped CIs. This is further evidenced by the fact that the Bca confidence intervals are approximately equal to that of the normal approximation CIs. 
