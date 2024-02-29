@@ -1,6 +1,6 @@
 ---
-title: "assign 2"
-author: "Beimnet Taye"
+title: "Assignment 2"
+author: "Joan Shim & Beimnet Taye"
 date: "2024-02-27"
 output: pdf_document
 ---
@@ -182,17 +182,49 @@ The risk of death among the entire population with reduced levels of blood gluco
 \newpage
 # 2
 
-```{r q2}
-plot(density(rd.samples.low), main="Bootstraped Samples of Risk Difference",
-xlab="RD",
-sub="Low glucose vs. observed distribution")
-plot(density(rr.samples.low), main="Bootstraped Samples of Risk Ratio",
-xlab="RR",
-sub="Low glucose vs. observed distribution")
-par(mfrow=c(1,1))
+```{r q2, fig.align='center'}
+library(gridExtra)
+wrapper <- function(x, ...) 
+{
+  paste(strwrap(x, ...), collapse = "\n")
+}
+# plot(density(rd.samples.low), main="Bootstraped Samples of Risk Difference",
+# xlab="RD",
+# sub="Low glucose vs. observed distribution")
+# plot(density(rr.samples.low), main="Bootstraped Samples of Risk Ratio",
+# xlab="RR",
+# sub="Low glucose vs. observed distribution")
+# par(mfrow=c(1,1))
 
+rd.dens.low <- ggplot(data = NULL) +
+  geom_density(aes(x = rd.samples.low)) +
+  labs(x = "RD",
+       y = "Density",
+       subtitle = wrapper("Low Glucose vs Observed Distribution", width = 30))
 
-par(mfrow=c(2,1))
+rr.dens.low <- ggplot(data = NULL) +
+  geom_density(aes(x = rr.samples.low)) +
+  labs(x = "RR",
+       y = "Density",
+       subtitle = wrapper("Low Glucose vs Observed Distribution", width = 30))
+
+rd.dens.red <- ggplot(data = NULL) +
+  geom_density(aes(x = rd.samples.red)) +
+  labs(x = "RD",
+       y = "Density",
+       subtitle = wrapper("Reduced Glucose vs Observed Distribution", width = 30))
+
+rr.dens.red <- ggplot(data = NULL) +
+  geom_density(aes(x = rr.samples.red)) +
+    labs(x = "RR",
+       y = "Density",
+       subtitle = wrapper("Reduced Glucose vs Observed Distribution", width = 30))
+
+grid.arrange(rd.dens.low,rd.dens.red, rr.dens.low,rr.dens.red, nrow =2, top = "Bootstrapped Samples of Risk Difference and Risk Ratio")
+
+```
+```{r q2.2, eval=FALSE}
+# par(mfrow=c(2,1))
 plot(density(rd.samples.red), main="Bootstraped Samples of Risk Difference",
 xlab="RD",
 sub="Reduced glucose vs. observed distribution")
@@ -209,7 +241,7 @@ For both the reduced and low glucose models both the RR and the RD seem to have 
 # 3
 $$ \begin{aligned}
 \text{.95 CI}_{norm}
-& = \hat{\theta} \pm z_{\alpha/2} * \hat{\text{SE}_{\hat{\theta}}} \\
+& = \hat{\theta} \pm z_{\alpha/2} * \widehat{\text{SE}_{\hat{\theta}}} \\
 & = (-0.007707) \pm (1.96) * (0.002293) \\
 & = (-0.01220128,-0.00321272) \\
 Or\\
@@ -222,7 +254,7 @@ The normal approximation requires the sampling distribution of the Risk differen
 # 4
 $$ \begin{aligned}
 \text{.95 CI}_{norm}
-& = \hat{\theta} \pm z_{\alpha/2} * \hat{\text{SE}_{\hat{\theta}}} \\
+& = \hat{\theta} \pm z_{\alpha/2} * \widehat{\text{SE}_{\hat{\theta}}} \\
 & = (0.971617) \pm (1.96) * (0.008443) \\
 & = \boxed{(0.96,0.99)}
 \end{aligned}$$
