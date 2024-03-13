@@ -81,33 +81,33 @@ model.file=model.posterior,
 inits=inits.model,
 parameters.to.save=parameters.model,
 n.iter=n.iter, n.chains=3)
-print(jags.samples,digits=4)
+# print(jags.samples,digits=4)
 ```
 
 ```{r diag}
-mcmc.samples <- as.mcmc(jags.samples) # Converts samples to "MCMC object"
-# for diagnostics
-# Traceplot and density plots for regression coefficients
-# code will save to PDF in current directory.
-# Execute "plot" commands only to plot to screen.
-pdf("Traceplot_LogisticReg.pdf") # Write what comes next to PDF file
-plot(mcmc.samples[1][,1:4]) # For Chain 1, beta1-4
-plot(mcmc.samples[1][,5:8]) # For Chain 1, beta5-7 and deviance
-dev.off() # Stop writing to the PDF file
+# mcmc.samples <- as.mcmc(jags.samples) # Converts samples to "MCMC object"
+# # for diagnostics
+# # Traceplot and density plots for regression coefficients
+# # code will save to PDF in current directory.
+# # Execute "plot" commands only to plot to screen.
+# pdf("Traceplot_LogisticReg.pdf") # Write what comes next to PDF file
+# plot(mcmc.samples[1][,1:4]) # For Chain 1, beta1-4
+# plot(mcmc.samples[1][,5:8]) # For Chain 1, beta5-7 and deviance
+# dev.off() # Stop writing to the PDF file
+# 
+# 
+# # Autocorrelation plots for the regression coefficients
+# pdf("ACF_LogisticReg.pdf")
+# par(omi=c(.25,.25,.25,.25)) # Create an outer margin (room for title)
+# autocorr.plot(mcmc.samples[1][,1:7]) # For chain 1
+# title("Chain 1", outer=T) # Place title in outer margin of page
+# autocorr.plot(mcmc.samples[2][,1:7]) # For chain 2 (optional)
+# title("Chain 2", outer=T)
+# autocorr.plot(mcmc.samples[3][,1:7]) # For chain 3 (optional)
+# title("Chain 3", outer=T)
+# dev.off()
 
-
-# Autocorrelation plots for the regression coefficients
-pdf("ACF_LogisticReg.pdf")
-par(omi=c(.25,.25,.25,.25)) # Create an outer margin (room for title)
-autocorr.plot(mcmc.samples[1][,1:7]) # For chain 1
-title("Chain 1", outer=T) # Place title in outer margin of page
-autocorr.plot(mcmc.samples[2][,1:7]) # For chain 2 (optional)
-title("Chain 2", outer=T)
-autocorr.plot(mcmc.samples[3][,1:7]) # For chain 3 (optional)
-title("Chain 3", outer=T)
-dev.off()
-
-geweke.diag(mcmc.samples[,1:7])
+# geweke.diag(mcmc.samples[,1:7])
 ```
 
 ```{r inform1}
@@ -118,7 +118,7 @@ model.file=model.posterior,
 inits=inits.model,
 parameters.to.save=parameters.model,
 n.iter=n.iter, n.chains=3)
-print(jags.samples.inform1,digits=4)
+# print(jags.samples.inform1,digits=4)
 ```
 
 ```{r inform2}
@@ -131,7 +131,7 @@ model.file=model.posterior,
 inits=inits.model,
 parameters.to.save=parameters.model,
 n.iter=n.iter, n.chains=3)
-print(jags.samples.inform2,digits=4)
+# print(jags.samples.inform2,digits=4)
 
 ```
 \newpage
