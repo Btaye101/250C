@@ -1,0 +1,137 @@
+---
+title: "lab 4"
+author: "Beimnet Taye"
+date: "2024-02-29"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(data.table)
+```
+
+```{r}
+estimates <- fread("multiplier_method_estimates.csv")
+N <- 777660
+
+# estimates[,`:=` ( #function called with parentheses, arguements are columns to mutate
+#   p = n/N,
+#   p_lb = lb/N,
+#   p_ub = ub/N
+# )]
+
+col_names <- c("n", "lb", "ub")
+
+new_names <-  c("p","p_lb", "p_ub")
+
+estimates[, (new_names) := lapply(
+  col_names, function(x) {get(x)/N}
+)]
+
+
+
+# class(estimates)
+```
+1
+
+```{r}
+
+estimates[,`:=`(
+  variance = ((p_ub - p) /1.96)^2
+)]
+
+
+estimates[,`:=`( #.N returns number of rows within group which is specified by third value of bracket
+  df = .N -1,
+  Q = sum(p^2/variance) - (sum(p/variance))^2 / sum(1/variance),
+  C = sum(1/variance) - (sum(variance^(-2))) / (sum(1/variance))
+), year]
+
+estimates[,`:=`(
+    adjusted_variance = variance + ((Q - df)/ C)
+)]
+
+head(estimates)
+
+```
+2.
+```{r}
+
+get_alpha <- function(mu, sigma2) {
+  - mu * (sigma2 + mu^2 -mu)/sigma2
+}
+
+get_beta <- function(mu, sigma2) {
+  (sigma2 + mu^2 - mu) * (mu -1)/sigma2
+}
+
+priors <- data.table(
+  p = c(0.026, 0.003,
+        ub = c(0.033,0.0041),
+        lb = c(0.018, 0.0019))
+)
+
+priors[, variance := ((ub-p) /1.96)^2]
+
+estimates[,`:=`(
+  alpha = get_alpha(p, adjusted_variance),
+  beta = get_beta(p, adjusted_variance)
+)]
+
+priors[,`:=`(
+  alpha = get_alpha(p, variance),
+  beta = get_beta(p, variance)
+)]
+
+
+```
+3.
+
+```{r}
+library(R2jags)
+
+binom_lik_beta_prior <- function() {
+# SAMPLING DISTRIBUTION
+for (i in 1:N) {alpha[i] ~ dbinom(theta, n[i])}
+# PRIORS
+theta ~ dbeta(alpha0, beta0);
+}
+binom_lik_uniform_prior <- function() {
+# SAMPLING DISTRIBUTION
+for (i in 1:N) {alpha ~ dbinom(theta, n[i])};
+# PRIORS
+theta ~ dunif(a0, b0);
+}
+
+
+binom_lik_uniform_prior <- function() {
+# SAMPLING DISTRIBUTION
+for (i in 1:N) {alpha ~ dbinom(theta, n[i])};
+# PRIORS
+theta ~ dunif(a0, b0);
+}
+```
+
+```{r, eval =F}
+jags_output <- jags(
+  data = c(
+    as.list(estimates[
+      year == 2005, .(
+        alpha = round(alpha),
+        n = round(alpha + beta)
+        )]),
+    N = sum(estimates$year == 2005),
+    as.list(priors[1,.(alpha0 = alpha, beta0=beta)])
+  ),
+  inits = function() {list(theta = 0.5)}, 
+  model.file = binom_lik_beta_prior,
+  parameters.to.save = "theta",
+  n.iter = 5000
+)
+
+# save(jags_output, file = "bla.rdata")
+
+
+jags_output
+```
+
