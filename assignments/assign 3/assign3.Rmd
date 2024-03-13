@@ -1,0 +1,186 @@
+---
+title: "assignment 3"
+author: "Beimnet Taye"
+date: "2024-03-13"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+```
+
+```{r se}
+library(tidyverse)
+library(R2jags)
+library(knitr)
+library(kableExtra)
+library(coda)
+library(foreign)
+load("CVD_data.Rdata")
+
+# Extract data elements from data frame
+cvd <- CVD.data$cvd # Outcome
+cursmoke <- CVD.data$cursmoke # Exposure (smoking status)
+age.c <- as.numeric(scale(CVD.data$age))
+male <- as.integer(CVD.data$sex=="male")
+
+X.educ <- model.matrix(~-1 + factor(educ), data=CVD.data)
+educ1 <- X.educ[,1] # Unused in our analysis (reference category)
+educ2 <- X.educ[,2]
+educ3 <- X.educ[,3]
+educ4 <- X.educ[,4]
+```
+
+```{r jags}
+model.posterior <- function() {
+for (i in 1:N) {
+
+  
+logit(pi[i]) <- b[1] + b[2] * cursmoke[i] + b[3] * age.c[i] + b[4] * male[i] + b[5] * educ2[i] + b[6] * educ3[i] + b[7] * educ4[i];
+  
+cvd[i] ~ dbin(pi[i], 1); # Distribution of outcome
+}
+# PRIORS ON BETAS
+for (j in 1:Nx){
+b[j] ~ dnorm(mu[j], tau[j]); # Independent normal priors
+OR[j] <- exp(b[j]); # Calculate the odds ratios
+}
+}
+```
+
+```{r jagscons}
+
+# Constants to be passed in
+N <- length(cvd) # Number of observations to loop over
+Nx <- 7 # Number of parameters (w/ intercept)
+
+n.iter <- 10000 # Number of iterations to run (total)
+# Parameters on the priors:
+
+mu <- rep(0,Nx)
+
+tau <-  rep(1/1000, Nx)
+# List of data elements to pass in
+data.list <- list("N", "Nx", # Model constants (# obs, # vars)
+"cvd", "age.c", # Variable names (next 3 lines)
+"male", "cursmoke",
+"educ2", "educ3", "educ4",
+"mu","tau") # Hyperparameters
+# List of parameters to keep track of:
+parameters.model <- c("b", "OR")
+# Function to randomly generate initial values for each chain:
+inits.model <- function() {list (b=rnorm(Nx, 0, sd=.5))}
+
+```
+
+```{r run}
+set.seed(123)
+jags.samples <- jags(data=data.list,
+model.file=model.posterior,
+inits=inits.model,
+parameters.to.save=parameters.model,
+n.iter=n.iter, n.chains=3)
+print(jags.samples,digits=4)
+```
+
+```{r diag}
+mcmc.samples <- as.mcmc(jags.samples) # Converts samples to "MCMC object"
+# for diagnostics
+# Traceplot and density plots for regression coefficients
+# code will save to PDF in current directory.
+# Execute "plot" commands only to plot to screen.
+pdf("Traceplot_LogisticReg.pdf") # Write what comes next to PDF file
+plot(mcmc.samples[1][,1:4]) # For Chain 1, beta1-4
+plot(mcmc.samples[1][,5:8]) # For Chain 1, beta5-7 and deviance
+dev.off() # Stop writing to the PDF file
+
+
+# Autocorrelation plots for the regression coefficients
+pdf("ACF_LogisticReg.pdf")
+par(omi=c(.25,.25,.25,.25)) # Create an outer margin (room for title)
+autocorr.plot(mcmc.samples[1][,1:7]) # For chain 1
+title("Chain 1", outer=T) # Place title in outer margin of page
+autocorr.plot(mcmc.samples[2][,1:7]) # For chain 2 (optional)
+title("Chain 2", outer=T)
+autocorr.plot(mcmc.samples[3][,1:7]) # For chain 3 (optional)
+title("Chain 3", outer=T)
+dev.off()
+
+geweke.diag(mcmc.samples[,1:7])
+```
+
+```{r inform1}
+mu[2] <- log(2)
+set.seed(123)
+jags.samples.inform1 <- jags(data=data.list,
+model.file=model.posterior,
+inits=inits.model,
+parameters.to.save=parameters.model,
+n.iter=n.iter, n.chains=3)
+print(jags.samples.inform1,digits=4)
+```
+
+```{r inform2}
+
+sd.prior <- (log(2.67) - log(1.5))/(2*1.96) 
+tau[2] <- (1/sd.prior)^2
+set.seed(123)
+jags.samples.inform2 <- jags(data=data.list,
+model.file=model.posterior,
+inits=inits.model,
+parameters.to.save=parameters.model,
+n.iter=n.iter, n.chains=3)
+print(jags.samples.inform2,digits=4)
+
+```
+\newpage
+# Q1
+
+```{r q1}
+
+noninform <- jags.samples[[2]]
+
+inform1 <- jags.samples.inform1[[2]]
+
+inform2 <- jags.samples.inform2[[2]]
+
+noninform <- noninform$summary[c(2:7),c(3,5,7)] %>% 
+  round(2) %>% 
+  as.data.frame() %>% 
+  mutate(est = paste0(`50%`," (",`2.5%`,", ", `97.5%`,")")) %>% 
+  select(est)
+
+rownames(noninform) <- c("Current smoker (vs. non)", "Age (per year increase)", "Male sex (vs. female)", "High school education (vs. <
+HS)", "Some college (vs. < HS)", "College+ (vs. < HS)")
+
+inform1 <- inform1$summary[c(2:7),c(3,5,7)] %>% 
+  round(2) %>% 
+  as.data.frame() %>% 
+  mutate(est = paste0(`50%`," (",`2.5%`,", ", `97.5%`,")")) %>% 
+  select(est)
+
+rownames(inform1) <- c("Current smoker (vs. non)", "Age (per year increase)", "Male sex (vs. female)", "High school education (vs. <
+HS)", "Some college (vs. < HS)", "College+ (vs. < HS)")
+
+inform2 <- inform2$summary[c(2:7),c(3,5,7)] %>% 
+  round(2) %>% 
+  as.data.frame() %>% 
+  mutate(est = paste0(`50%`," (",`2.5%`,", ", `97.5%`,")")) %>% 
+  select(est)
+
+rownames(inform2) <- c("Current smoker (vs. non)", "Age (per year increase)", "Male sex (vs. female)", "High school education (vs. <
+HS)", "Some college (vs. < HS)", "College+ (vs. < HS)")
+
+estimates <- cbind(noninform, inform1,inform2)
+
+colnames(estimates) <- c("Vague Priors", "Informative Prior 1", "Informative Prior 2")
+
+estimates %>% 
+  kable(booktabs =T, col.names = c("Vague Prior", paste0("Informative Prior 1", footnote_marker_symbol(1)), paste0("Informative Prior 2", footnote_marker_symbol(2))),
+  escape = F) %>% 
+  footnote(symbol = c("Prior mean for OR of current smoking=2, prior variance of log-OR=1000.", "Prior mean for OR of current smoking=2, prior variance of log-OR= 0.02.")) %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+  
+```
+
