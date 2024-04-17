@@ -1,0 +1,263 @@
+---
+title: "hmrk4"
+author: "Beimnet Taye"
+date: "2024-04-17"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, message = F, warning = F)
+library("geepack")
+library(tidyverse)
+library("mi")
+library("R2jags")
+library("coda")
+library("doBy")
+library("tableone")
+library(knitr)
+library(kableExtra)
+load("CVD_dataHW4.Rdata")
+```
+
+```{r full}
+##### Full analysis (this is already completed in Table 2)
+logistic.full <- glm(cvd ~ cursmoke + age + factor(sex) + factor(educ),
+data=CVD.data.miss,
+family = binomial(link="logit"))
+```
+
+
+```{r missmod}
+logistic.cc <- glm(cvd ~ cursmoke.miss + age + factor(sex) + factor(educ),
+data=CVD.data.miss,
+family = binomial(link="logit"))
+```
+
+```{r ipw}
+model.r <- glm(r ~ age + factor(sex) + factor(educ) + cvd, family=binomial,
+data=CVD.data.miss)
+
+phat.r <- predict(model.r, type="response") # Predicted probability of observed
+w <- 1/phat.r # Weight according to probability of being observed
+
+data.cc <- na.omit(as.data.frame(cbind(CVD.data.miss,w)))
+
+# IPW for missing data:
+data.cc$id <- seq(1:nrow(data.cc)) # Create ID variable for GEE function
+logistic.ipw <- geeglm(cvd ~ cursmoke.miss + age + factor(sex) + factor(educ),
+family=binomial, weights = w, id=id, data=data.cc,
+std.err='san.se', corstr="independence", scale.fix=T)
+```
+
+```{r mi}
+##### Multiple Imputation
+# Make a data frame with all variables for missing data analysis
+# Create data frame omitting the true smoking variable and missingness indicator:
+comp_data_subset <- subset(CVD.data.miss,
+select= -c(cursmoke,r))
+mdf <- missing_data.frame(comp_data_subset)
+
+
+
+mdf <- change(mdf,y=c("age"), what="transformation", to=c("identity"))
+# show(mdf)
+# summary(mdf)
+
+imputations <- mi(mdf, seed=123, n.chains=3, n.iter=100, parallel=FALSE)
+round(mipply(imputations, mean, to.matrix = TRUE), 3)
+Rhats(imputations)
+
+
+logistic.mi <- pool(cvd ~ cursmoke.miss + age + factor(sex) + factor(educ),
+data=imputations, family=binomial, m=20)
+
+
+
+```
+
+```{r bayes}
+logistic.model <- function() {
+# SAMPLING DISTRIBUTION
+for (i in 1:N) {
+logit(p[i]) <- b[1] + b[2]*cursmoke.miss[i] + b[3]*age[i] +
+b[4]*male[i] + b[5]*educ.2[i] + b[6]*educ.3[i] + b[7]*educ.4[i];
+cvd[i] ~ dbin(p[i],1);
+# DISTRIBUTION ON COVARIATE WITH MISSING DATA:
+logit(p.cursmoke[i]) <- a[1]+ a[2]*age[i] + a[3]*male[i] +
+a[4]*educ.2[i] + a[5]*educ.3[i] + a[6]*educ.4[i] +
+a[7]*age[i]*male[i];
+cursmoke.miss[i] ~ dbin(p.cursmoke[i], 1);
+}
+# VAGUE NORMAL PRIORS ON BETAS
+b[1:N.y] ~ dmnorm(mu.b[1:N.y], tau.b[1:N.y,1:N.y]);
+# VAGUE NORMAL PRIORS ON ALPHAS
+a[1:N.x] ~ dmnorm(mu.a[1:N.x], tau.a[1:N.x,1:N.x]);
+}
+
+
+
+N <- nrow(CVD.data.miss) # Number of observations
+N.y <- 7 # Number of parameters in model for cvd
+N.x <- 7 # Number of parameters in model for cursmoke.miss (variable w/ missingness)
+# Create indicator variable for education variable:
+X <- model.matrix(~ factor(educ)-1, data=CVD.data.miss)
+educ.1 <- X[,1] # Unused in model
+educ.2 <- X[,2]
+educ.3 <- X[,3]
+educ.4 <- X[,4]
+# Data, parameter list and starting values
+mu.b <- rep(0,N.y) # Vector of 0's for means
+tau.b <- diag(0.01,N.y) # Diagonal matrix for variance-covariances
+mu.a <- rep(0,N.x)
+tau.a <- diag(0.01, N.x)
+
+
+data.logistic <- list(N=N, N.y=N.y, N.x=N.x,
+cvd=CVD.data.miss$cvd,
+cursmoke.miss = CVD.data.miss$cursmoke.miss,
+age=CVD.data.miss$age,
+male=as.integer(CVD.data.miss$sex=="male"),
+educ.2=educ.2,
+educ.3=educ.3,
+educ.4=educ.4,
+mu.b=mu.b, tau.b=tau.b,
+mu.a=mu.a, tau.a=tau.a)
+parameters.logistic <-c("b","a") # Parameters to keep track of
+
+
+
+## THIS WILL TAKE A WHILE TO RUN.
+# logistic.sim<-jags.parallel(data=data.logistic,
+# parameters.to.save=parameters.logistic,
+# n.iter=20000,
+# model.file=logistic.model,
+# n.thin=5, n.chains = 3,
+# jags.seed=114011)
+# # Convert results to MCMC object:
+# logistic.mcmc <- as.mcmc(logistic.sim)
+
+# save(logistic.sim, file = "mcmc.RData")
+
+# pdf("TraceplotBayes.pdf")
+# plot(logistic.mcmc)
+# dev.off()
+# pdf("AutoCorrelation.pdf")
+# autocorr.plot(logistic.mcmc)
+# dev.off()
+
+load("mcmc.RData")
+
+logistic.mcmc <- as.mcmc(logistic.sim)
+
+```
+
+```{r toget}
+# Coefficient estimates:
+beta.full <- coef(logistic.full)
+beta.cc <- coef(logistic.cc)
+beta.ipw <- coef(logistic.ipw)
+beta.mi <- coef(logistic.mi)
+beta.bayes <- summary(logistic.mcmc)$quantile[,3][paste("b[",1:N.y,"]",sep="")]
+ coefs <- cbind(beta.full, beta.cc, beta.ipw, beta.mi, beta.bayes)
+
+# Standard error estimates:
+se.full <- sqrt(diag(vcov(logistic.full)))
+se.cc <- sqrt(diag(vcov(logistic.cc)))
+se.ipw <- summary(logistic.ipw)$coefficients$Std.err
+se.mi <- sqrt(diag(summary(logistic.mi)$cov.scaled))
+se.bayes <- summary(logistic.mcmc)$statistics[,2][paste("b[",1:N.y,"]",sep="")]
+ses <- cbind(se.full, se.cc, se.ipw, se.mi, se.bayes)
+```
+
+\newpage
+
+# Q1
+
+
+
+```{r q1}
+# desc <- CreateTableOne(vars=c("cvd","age", "sex", "educ"),
+# data=CVD.data.miss, strata="r",
+# factorVars =c("cvd","sex","cursmoke", "educ"), test=FALSE)
+# 
+# 
+# desc.f <- print(desc, quote = FALSE, noSpaces = TRUE, printToggle = FALSE)
+# 
+# write.csv(desc.f,"desc.csv")
+
+desc.final <- read_csv("desc.csv")
+
+kable(desc.final, col.names = c("Covariate" , "Smoking Missing", "Smoking Observed"), caption = c("Descriptive statistics (means/proportions) for each
+fully observed covariate by indicator of whether smoking is
+observed or missing."), booktabs = T) %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped"))
+
+
+
+```
+
+
+\newpage
+
+# Q2
+
+```{r q2}
+full <- as.data.frame(cbind(coefs,ses)) %>% 
+  mutate(across(contains("se"), ~ round(.,5)),
+         across(contains("beta"), ~ round(.,4))) %>% 
+  mutate("Full Analysis" = paste0(beta.full," (",se.full,")"),
+         "Complete Case Analysis" = paste0(beta.cc," (",se.cc,")"),
+         "IP Weighting" = paste0(beta.ipw," (",se.ipw,")"),
+         "Multiple Imputation" = paste0(beta.mi," (",se.mi,")"),
+         "Fully Bayesian" = paste0(beta.bayes," (",se.bayes,")"))
+
+rownames(full) <- NULL
+
+full.f <- full[,c(11:15)]
+
+
+
+full.final <- cbind(c("Intercept","Smoking","Age","Male","HS grad","Some college", "College grad"),full.f) %>% 
+  rename("Model Coefficient" = 1)
+
+full.final %>% 
+  kable(booktabs =T, caption = "Parameter values and standard errors (in parentheses)
+from logistic regression model of CVD on smoking, age, sex, and education applying several missing data methods.") %>% 
+  kable_styling(latex_options = c("HOLD_position", "striped", "scale_down"), full_width = F)
+
+
+```
+
+\newpage
+
+# Q3
+
+A complete case analysis is valid when either the missing variable is missing completely at random or missing at random and is not dependent on the outcome. Given table 1 I think these assumptions can hold as while the data is not MCAR it could be MAR and the proportions of those missing and having smoking data among those with CVD are similar, possibly indicating that the smoking status being observed is not dependent on the outcome CVD.
+
+\newpage
+
+# Q4
+
+All of these methods require the assumption that the data is *not* not missing at random. This means that the probability of having missing smoking data is not dependent on being a smoker. I don't think that this is the case here so I think all three methods are valid. that being said, while I don't think this is the case here, in general I can see how patients who do smoke might be less likely to report smoking status due to some social desirability bias. This would lead to the missingness of smoking data being NMAR and thus we would not be able to use IP weighting, imputation, or Bayesian methods.
+
+\newpage
+
+# Q5
+
+IPW relies on modeling the outcome with weights that are the inverse of the probability of being observed. These probabilities are first derived by modeling them as a function of the outcome and covariates.
+
+Imputation/Bayesian methods on the other hand rely on modeling the missing covariate/covariates themselves.
+
+I would use IPW when the sample size is large and I'm not too sure about the underlying distribution of my missing covariate. I would use IPW/Bayesian methods when my sample size is small or I have multiple missing covariates. 
+
+\newpage
+
+# Q6
+
+## i.
+
+In terms of the coefficients, all had higher values/point estimates that are farther from the null than the full data model. When comparing the precision all, except imputation, had large standard errors than the full model. Multiple imputation actually had a very slighter smaller standard error than the full model.
+
+## ii.
+
+I would use the multiple imputation model since it seems to be more precise than the other methods. 

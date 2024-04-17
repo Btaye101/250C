@@ -80,12 +80,13 @@ jags.samples <- jags(data=data.list,
 model.file=model.posterior,
 inits=inits.model,
 parameters.to.save=parameters.model,
-n.iter=n.iter, n.chains=3)
+n.iter=n.iter, n.chains=3,
+quiet = T)
 # print(jags.samples,digits=4)
 ```
 
 ```{r diag}
-# mcmc.samples <- as.mcmc(jags.samples) # Converts samples to "MCMC object"
+mcmc.samples <- as.mcmc(jags.samples) # Converts samples to "MCMC object"
 # # for diagnostics
 # # Traceplot and density plots for regression coefficients
 # # code will save to PDF in current directory.
@@ -117,7 +118,8 @@ jags.samples.inform1 <- jags(data=data.list,
 model.file=model.posterior,
 inits=inits.model,
 parameters.to.save=parameters.model,
-n.iter=n.iter, n.chains=3)
+n.iter=n.iter, n.chains=3,
+quiet = T)
 # print(jags.samples.inform1,digits=4)
 ```
 
@@ -130,7 +132,8 @@ jags.samples.inform2 <- jags(data=data.list,
 model.file=model.posterior,
 inits=inits.model,
 parameters.to.save=parameters.model,
-n.iter=n.iter, n.chains=3)
+n.iter=n.iter, n.chains=3,
+quiet = T)
 # print(jags.samples.inform2,digits=4)
 
 ```
@@ -184,3 +187,35 @@ estimates %>%
   
 ```
 
+\newpage
+# Q2
+
+```{r q2}
+
+p1 <- c(log(2) - 1.96*sqrt(1000), log(2) + 1.96*sqrt(1000))
+
+p2 <- c(log(2) - 1.96*sqrt(0.02), log(2) + 1.96*sqrt(0.02))
+
+```
+
+The prior 95% interval for Informative Prior 1 is: $log(2) \pm 1.96*\sqrt{1000}$ which is equal to: $(-61.3,62.7)$. This is a wide prior for the beta coefficient for smoking, especially when compared to the corresponding interval for Informative Prior 2, making it less informative than that of Informative Prior 2.
+
+\newpage
+# Q3
+
+Informative Prior 2 had more of an effect of dragging the smoking OR closer to 2 since the precision is larger for informative prior 2 resulting in prior 2 to influence the posterior distribution more.
+
+\newpage
+# Q4
+Based on the traceplots it seems to model converged nicely for all parameters measured. Every parameter has a hairy caterpillar like trace around a horizontal line indicating good convergence. The density plots also seem pretty uni-modal indicating good convergence. The autocorrelation plots for all parameters indicate that sample auto correlation drops off pretty quickly indicating good model mixing and convergence. 
+
+\newpage
+# Q5
+
+```{r}
+
+geweke.diag(mcmc.samples[,1:7])
+```
+
+
+From the results of the Geweke test it seems the 5th beta in the first chain and the second beta in the third chain failed to converge as their Z test statistics were greater than 1.96 in magnitude, indicating that the mean of the first 10% of the chain differed significantly from the mean of the final 50% of the chain. This means that the sampler varied/wandered too much when sampling. 
