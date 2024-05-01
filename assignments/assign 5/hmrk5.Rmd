@@ -1,0 +1,136 @@
+---
+title: "hmrk 5"
+author: "Beimnet Taye"
+date: "2024-05-01"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning = F, message = F)
+
+library(survival)
+library(triangle)
+# load("senssamp.rdata")
+# colnames(senssamp) <- tolower(colnames(senssamp))
+```
+
+
+```{r surv}
+# obs.model <- coxph(Surv(mortime2, bccause) ~ defnther + excat1 + agecat1 + agecat2,
+# ties="efron", data=senssamp)
+# exp(coef(obs.model))[1]
+# exp(confint.default(obs.model))[1,]
+```
+
+```{r}
+# N.obs <- nrow(senssamp) # Determine number of observations in data
+# N.samp <- 5000 # Specify the number of samples
+# 
+# set.seed(123) # Set the random seed.
+# # Prior distributions for unmeasured confounder given therapy and death:
+# p.U00 <- rtriangle(N.samp,.3,.4) # Definitive therapy, did not die
+# p.U10 <- rtriangle(N.samp,.45,.55) # Less than definitive therapy, did not die
+# p.U01 <- rtriangle(N.samp,.45,.55)# Definitive therapy, died
+# p.U11 <- rtriangle(N.samp,.6,.7)# Less than definitive therapy, died
+# 
+# 
+# # Initialize storage vectors for the parameter estimates
+# HR.systematic <- rep(NA, N.samp) # for HR corrected for systematic error only
+# HR.total <- rep(NA, N.samp) # for HR corrected for systematic + accounting for sampling error
+# HR.U <- matrix(NA, ncol=1, nrow=N.samp) # For the Y-X (defnther) and Y-U relationships
+# a.X <- matrix(NA, ncol=2, nrow=N.samp) # For the U-X (defnther) relationship.
+# attach(senssamp)
+# for (i in 1:N.samp){
+# # Calculate probability of U for current value of bias parameters
+# # given therapy (defnther) and mortality (bccause):
+# p.U <- p.U00[i]*(1-defnther)*(1-bccause) + # Definitive therapy, no death
+# p.U10[i]*defnther*(1-bccause) + # Less than definitive therapy, no death
+# p.U01[i]*(1-defnther)*bccause + # Definitive therapy, death
+# p.U11[i]*defnther*bccause # Less thanefinitive therapy, death
+# U <- rbinom(N.obs, 1, p.U) # Sample the unmeasured confounder
+# # ***** COMPLETE THIS *****
+# U.model <- glm(U ~ defnther, family = "binomial")
+# ##### for the outcome U and a single precitor defnther
+# bias.model <- coxph(Surv(mortime2, bccause) ~ defnther + excat1 + agecat1 + agecat2 + U,
+# ties="efron", data=senssamp) 
+# #Fit a Cox proportional hazards model here, parameterized as above
+# ##### but including the unmeasured confounder just sampled.
+# # *************************
+# # Accumulate coefficients
+# a.X[i,] <- coef(U.model) # Save coefficients from U model
+# b.systematic <- coef(bias.model)[1] # beta coefficient on therapy variable
+# se.systematic <- sqrt(vcov(bias.model)[1,1]) # standard error of therapy estimate
+# HR.U[i] <- exp(coef(bias.model)[5]) # HR for U
+# HR.systematic[i] <- exp(b.systematic) # HR accounting for systematic error only
+# b.total <- rnorm(1,b.systematic, se.systematic) # Adding in random variability
+# HR.total[i] <- exp(b.total) # HR accounting for systematic + random error
+# }
+# detach(senssamp)
+
+
+```
+
+```{r}
+# round(quantile(HR.systematic, c(.5, .025, .975)), 2)
+# round(quantile(HR.total, c(.5, .025, .975)), 2)
+# round(quantile(HR.U, c(.5, .025, .975)), 2) ## Changed to HR.U (from b.U) 4/18/21
+# colnames(a.X) <- c("Intercept","defnther")
+# a.X.mes <- t(apply(a.X, 2, quantile, c(.5, .025, .975)))
+
+
+
+# save(HR.systematic, HR.total,HR.U, a.X.mes, a.X, file = "unif.RData")
+
+# save(HR.systematic, HR.total,HR.U, a.X.mes, a.X, file = "tri.RData")
+
+# load("unif.RData")
+```
+
+# Q1
+
+```{r}
+library(knitr)
+library(kableExtra)
+library(tidyverse)
+
+tibble(
+  Analysis = c("Standard analysis","Bias analysis-Uniform","Bias analysis-Triangle"),
+  "Systematic Error" = c("N/A","1.88  (1.60,2.06)", "1.88 (1.62,2.05)"),
+  "Systematic Error and Random Error" = c("2.03 (1.18,3.49)","1.86 (1.07,3.27)","1.86 (1.07,3.26)")
+) %>% 
+  kable(booktabs= T, caption = "Hazard ratios and 95% intervals for standard analysis
+and bias analysis of unmeasured confounding for relationship
+between less-than-definitive therapy and breast cancer
+mortality.") %>% 
+  kable_styling(latex_options = c("striped", "HOLD_position"))
+
+```
+\newpage
+
+# Q2
+
+## a.
+
+-   U Logistic Model (log odds):
+    -   Intercept: -0.56 (-0.87,-0.25)
+    -   defnther: 0.72 (0.2, 1.23)
+    
+-   mortality-U relationship (HR):
+    -   Intercept: -0.56 (-0.87,-0.25)
+    -   defnther: 1.75 (1.01,3.05) 
+
+## b.
+
+Yes since the confounder is associated with both the exposure and the outcome. In this case the confounder is associated with the therapy status as seen in the non-null association in the logistic model and the confounder is associated with the outcome as seen in the non null HR between therapy status and cancer death. 
+
+\newpage
+
+# Q3
+
+The triangular priors has the narrower interval estimates. This makes sense since the triangular priors will concentrate more distributional mass in a region than uniform priors which would spread out the sampled prevalence more. As a result, the sampled prevalence from the triangular distributions are more concentrated together leading to the narrower intervals. 
+
+\newpage
+
+# Q4
+
+In initializing our PBA the prevalence of our unmeasured confounder was highest among those who died with less than definitive therapy. Our simulated confounder increased the hazard of dying from cancer.The original unadjusted model had a hazard ratio of 2.03 (1.18,3.49) while the bias corrected model had an adjusted hazard ratio of 1.86 (1.07,3.27). Thus the unmeasured confounder biased the effect of the lack of definitive therapy on cancer deaths away from the null.

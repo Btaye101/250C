@@ -1,6 +1,6 @@
 ---
-title: "hmrk4"
-author: "Beimnet Taye"
+title: "Assignment 4"
+author: "Joan Shim and Beimnet Taye"
 date: "2024-04-17"
 output: pdf_document
 ---
@@ -232,13 +232,13 @@ from logistic regression model of CVD on smoking, age, sex, and education applyi
 
 # Q3
 
-A complete case analysis is valid when either the missing variable is missing completely at random or missing at random and is not dependent on the outcome. Given table 1 I think these assumptions can hold as while the data is not MCAR it could be MAR and the proportions of those missing and having smoking data among those with CVD are similar, possibly indicating that the smoking status being observed is not dependent on the outcome CVD.
+A complete case analysis is valid when either the missing variable is missing completely at random or missing at random and is not dependent on the outcome and when a few observations are missing data (<10%). This is not the case here since according to table 1 22.8% are missing smoking status.  
 
 \newpage
 
 # Q4
 
-All of these methods require the assumption that the data is *not* not missing at random. This means that the probability of having missing smoking data is not dependent on being a smoker. I don't think that this is the case here so I think all three methods are valid. that being said, while I don't think this is the case here, in general I can see how patients who do smoke might be less likely to report smoking status due to some social desirability bias. This would lead to the missingness of smoking data being NMAR and thus we would not be able to use IP weighting, imputation, or Bayesian methods.
+All of these methods require the assumption that the data is **not** not missing at random. This means that the probability of having missing smoking data is not dependent on being a smoker. I don't think that this is the case here since the percentage missing seems similar to the percentage observed across the other covariates and outcome. So I think all three methods are valid. That being said, while I don't think this is the case here, in general I can see how patients who do smoke might be less likely to report smoking status due to some social desirability bias. This would lead to the missingness of smoking data being NMAR and thus we would not be able to use IP weighting, imputation, or Bayesian methods.
 
 \newpage
 
@@ -248,7 +248,7 @@ IPW relies on modeling the outcome with weights that are the inverse of the prob
 
 Imputation/Bayesian methods on the other hand rely on modeling the missing covariate/covariates themselves.
 
-I would use IPW when the sample size is large and I'm not too sure about the underlying distribution of my missing covariate. I would use IPW/Bayesian methods when my sample size is small or I have multiple missing covariates. 
+I would use IPW when the sample size is large and I'm not too sure about the underlying distribution of my missing covariate. I would use imputation/Bayesian methods when my sample size is small or I have multiple missing covariates. 
 
 \newpage
 
